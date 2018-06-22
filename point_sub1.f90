@@ -1,6 +1,7 @@
-submodule (body) body_sub1
+submodule (point) point_sub1
+        integer :: temp
 contains
     module procedure duplicate
-        bodyVar%position = 10.0D0
+        write(*,*) 'temp'
     end procedure duplicate
 end submodule
