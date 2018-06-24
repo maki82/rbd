@@ -19,10 +19,15 @@ module joints
 
     end type
 
+    type :: jointCon
+        class(joint), allocatable :: jo
+    end type    
+
     interface 
-        subroutine evalGeneric(inJoint,output)
+        subroutine evalGeneric(inJoint,time,output)
             import joint
             class(joint),intent(in) :: inJoint
+        real(8), intent(in) :: time
             real(8), intent(out) :: output(:)
     
         end subroutine
@@ -31,7 +36,11 @@ module joints
     type, extends(joint) :: jointFixed
         contains
         procedure :: eval => evalFixed
-        ! procedure :: init => initFixed
+    end type
+
+    type, extends(joint) :: jointFixedAngle
+        contains
+        procedure :: eval => evalFixedAngle
     end type
 
     type, extends(joint) :: jointRigid
@@ -41,7 +50,33 @@ module joints
         contains
 
         procedure :: eval => evalRigid
-        ! procedure :: init => initRigid
+    end type
+
+    type, extends(joint) :: jointDistance
+        real(8) :: Distance2 = 0.0D0
+
+        contains
+
+        procedure :: eval => evalDistance
+    end type
+
+    type, extends(joint) :: jointLiner
+        real(8) :: dir(2) = 0.0D0
+
+        contains
+
+        procedure :: eval => evalLiner
+    end type
+
+    type, extends(joint) :: jointLinearMove
+        real(8) :: incX = 0.0D0
+        real(8) :: incY = 0.0D0
+        real(8) :: incAngle = 0.0D0
+
+        contains
+
+        procedure :: initLinearMove
+        procedure :: eval => evalLinearMove
     end type
 
     contains
@@ -59,34 +94,109 @@ module joints
         select type (injoint)
             type is(jointFixed)
                 inJoint%equations = 3
+            type is(jointFixedAngle)
+                inJoint%equations = 1
             type is(jointRigid)
                 inJoint%equations = 3
                 inJoint%initialX = point2%TS(0)%x - point1%TS(0)%x
-                inJoint%initialX = point2%TS(0)%y - point1%TS(0)%y
+                inJoint%initialY = point2%TS(0)%y - point1%TS(0)%y
+            type is(jointLinearMove)
+                inJoint%equations = 3
+            type is(jointDistance)
+                inJoint%equations = 1
+                inJoint%Distance2 = (point2%TS(0)%x - point1%TS(0)%x)**2.0D0 + (point2%TS(0)%y - point1%TS(0)%y)**2.0D0
+            type is(jointLiner)
+                inJoint%equations = 1
+                inJoint%dir(1) = point2%TS(0)%x - point1%TS(0)%x
+                inJoint%dir(2) = point2%TS(0)%y - point1%TS(0)%y
+                if(norm2(injoint%dir) < 1.0D-14) then
+                    stop 'nonono'
+                else
+                    injoint%dir= injoint%dir/norm2(injoint%dir)
+                endif
         end select        
     end subroutine
 
-    subroutine evalfixed(inJoint,output)
-        class(jointFixed),intent(in) :: inJoint
+    subroutine initLinearMove(inJoint,incX,incY,incAngle)
+        class(jointLinearMove), intent(inout)          :: injoint
+        real(8), intent(in)                           :: incX
+        real(8), intent(in)                           :: incY
+        real(8), intent(in)                           :: incAngle
+
+        inJoint%incX = incX
+        inJoint%incY = incY
+        inJoint%incAngle = incAngle
+    end subroutine 
+
+    subroutine evalLinearMove(inJoint,time,output)
+        class(jointLinearMove),intent(in) :: inJoint
+        real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. 3 ) stop  'Dere'
+        if(size(output) .ne. injoint%equations ) stop  'Dere'
+
+        output(1)= inJoint%point1%TS(0)%x - inJoint%incX * time    
+        output(2)= inJoint%point1%TS(0)%y - inJoint%incY * time    
+        output(3)= inJoint%point1%TS(0)%angle - inJoint%incAngle * time    
+    end subroutine
+
+    subroutine evalFixed(inJoint,time,output)
+        class(jointFixed),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:)
+
+        if(size(output) .ne. injoint%equations ) stop  'Dere'
 
         output(1)= inJoint%point1%TS(0)%x - inJoint%point1%TS(-1)%x    
         output(2)= inJoint%point1%TS(0)%y - inJoint%point1%TS(-1)%y    
         output(3)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
     end subroutine
 
-    subroutine evalRigid(inJoint,output)
-        class(jointRigid),intent(in) :: inJoint
+    subroutine evalFixedAngle(inJoint,time,output)
+        class(jointFixedAngle),intent(in) :: inJoint
+        real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. 3 ) stop  'Dere'
+        if(size(output) .ne. injoint%equations ) stop  'Dere'
+
+        output(1)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
+    end subroutine
+
+    subroutine evalRigid(inJoint,time,output)
+        class(jointRigid),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:)
+
+        if(size(output) .ne. injoint%equations ) stop  'Dere'
 
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
             output(1)= p2%x - p1%x - injoint%initialx * cos(p1%angle) - injoint%initialY * sin(p1%angle)
             output(2)= p2%y - p1%y - injoint%initialy * cos(p1%angle) + injoint%initialX * sin(p1%angle)
             output(3)= p2%angle - p1%angle    
+        end associate
+    end subroutine
+
+    subroutine evalDistance(inJoint,time,output)
+        class(jointDistance),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:)
+
+        if(size(output) .ne. injoint%equations ) stop  'Dere'
+
+        associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
+            output(1)= (p2%x - p1%x)**2.0D0 + (p2%y - p1%y)**2.0D0 - inJoint%distance2
+        end associate
+    end subroutine
+
+    subroutine evalLiner(inJoint,time,output)
+        class(jointLiner),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:)
+
+        if(size(output) .ne. injoint%equations ) stop  'Dere'
+
+        associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
+            output(1)= (p2%x - p1%x) * injoint%dir(2) - (p2%y - p1%y) * injoint%dir(1) 
         end associate
     end subroutine
         

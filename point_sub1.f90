@@ -1,7 +1,8 @@
 submodule (point) point_sub1
         integer :: temp
 contains
-    module procedure duplicate
-        write(*,*) 'temp'
-    end procedure duplicate
+    module procedure init
+        point%TS(:)%x = x
+        point%TS(:)%y = y
+    end procedure
 end submodule
