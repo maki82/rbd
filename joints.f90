@@ -15,6 +15,7 @@ module joints
         contains 
         
         procedure(evalGeneric), deferred, pass(inJoint) :: eval 
+        procedure(derivativeGeneric), deferred, pass(inJoint) :: derivative
         procedure :: init => initGeneric
 
     end type
@@ -27,8 +28,15 @@ module joints
         subroutine evalGeneric(inJoint,time,output)
             import joint
             class(joint),intent(in) :: inJoint
-        real(8), intent(in) :: time
+            real(8), intent(in) :: time
             real(8), intent(out) :: output(:)
+    
+        end subroutine
+        subroutine derivativeGeneric(inJoint,time,output)
+            import joint
+            class(joint),intent(in) :: inJoint
+            real(8), intent(in) :: time
+            real(8), intent(out) :: output(:,:)
     
         end subroutine
     end interface
@@ -133,11 +141,21 @@ module joints
         real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. injoint%equations ) stop  'Dere'
+        output(inJoint%eqNR+0)= inJoint%point1%TS(0)%x - inJoint%incX * time    
+        output(inJoint%eqNR+1)= inJoint%point1%TS(0)%y - inJoint%incY * time    
+        output(inJoint%eqNR+2)= inJoint%point1%TS(0)%angle - inJoint%incAngle * time    
+    end subroutine
 
-        output(1)= inJoint%point1%TS(0)%x - inJoint%incX * time    
-        output(2)= inJoint%point1%TS(0)%y - inJoint%incY * time    
-        output(3)= inJoint%point1%TS(0)%angle - inJoint%incAngle * time    
+    subroutine derivativeLinearMove(inJoint,time,output)
+        class(jointLinearMove),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:,:)
+        
+        associate(p1=>inJoint%points1)
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= 1.0D0
+            output(inJoint%eqNR+1,(p1%pointNr-1)*3+2)= 1.0D0
+            output(inJoint%eqNR+2,(p1%pointNr-1)*3+3)= 1.0D0
+        end associate
     end subroutine
 
     subroutine evalFixed(inJoint,time,output)
@@ -145,11 +163,21 @@ module joints
         real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. injoint%equations ) stop  'Dere'
+        output(inJoint%eqNR+0)= inJoint%point1%TS(0)%x - inJoint%point1%TS(-1)%x    
+        output(inJoint%eqNR+1)= inJoint%point1%TS(0)%y - inJoint%point1%TS(-1)%y    
+        output(inJoint%eqNR+2)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
+    end subroutine
 
-        output(1)= inJoint%point1%TS(0)%x - inJoint%point1%TS(-1)%x    
-        output(2)= inJoint%point1%TS(0)%y - inJoint%point1%TS(-1)%y    
-        output(3)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
+    subroutine derivativeFixed(inJoint,time,output)
+        class(jointLinearMove),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:,:)
+        
+        associate(p1=>inJoint%points1)
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= 1.0D0
+            output(inJoint%eqNR+1,(p1%pointNr-1)*3+2)= 1.0D0
+            output(inJoint%eqNR+2,(p1%pointNr-1)*3+3)= 1.0D0
+        end associate
     end subroutine
 
     subroutine evalFixedAngle(inJoint,time,output)
@@ -157,9 +185,17 @@ module joints
         real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. injoint%equations ) stop  'Dere'
+        output(inJoint%eqNR+0)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
+    end subroutine
 
-        output(1)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
+    subroutine derivativeFixedAngle(inJoint,time,output)
+        class(jointLinearMove),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:,:)
+        
+        associate(p1=>inJoint%points1)
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= 1.0D0
+        end associate
     end subroutine
 
     subroutine evalRigid(inJoint,time,output)
@@ -167,12 +203,29 @@ module joints
         real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. injoint%equations ) stop  'Dere'
-
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
-            output(1)= p2%x - p1%x - injoint%initialx * cos(p1%angle) - injoint%initialY * sin(p1%angle)
-            output(2)= p2%y - p1%y - injoint%initialy * cos(p1%angle) + injoint%initialX * sin(p1%angle)
-            output(3)= p2%angle - p1%angle    
+            output(inJoint%eqNR+0)= p2%x - p1%x - injoint%initialx * cos(p1%angle) - injoint%initialY * sin(p1%angle)
+            output(inJoint%eqNR+1)= p2%y - p1%y - injoint%initialy * cos(p1%angle) + injoint%initialX * sin(p1%angle)
+            output(inJoint%eqNR+2)= p2%angle - p1%angle    
+        end associate
+    end subroutine
+
+    subroutine derivativeRigid(inJoint,time,output)
+        class(jointLinearMove),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(out) :: output(:,:)
+        
+        associate(p1 => injoint%point1 , p2 => injoint%point2 )
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= -1.0D0 
+            output(inJoint%eqNR+1,(p1%pointNr-1)*3+2)= -1.0D0
+            output(inJoint%eqNR+2,(p1%pointNr-1)*3+3)= -1.0D0
+
+            output(inJoint%eqNR+0,(p2%pointNr-1)*3+1)= 1.0D0 
+            output(inJoint%eqNR+1,(p2%pointNr-1)*3+2)= 1.0D0
+            output(inJoint%eqNR+2,(p2%pointNr-1)*3+3)= 1.0D0
+
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+3)= inJoint%initialx*sin(p1%angle) - inJoint%initialY * cos(p1%angle)
+            output(inJoint%eqNR+1,(p1%pointNr-1)*3+3)= inJoint%initialy*sin(p1%angle) + inJoint%initialX * cos(p1%angle)
         end associate
     end subroutine
 
@@ -181,10 +234,8 @@ module joints
         real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. injoint%equations ) stop  'Dere'
-
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
-            output(1)= (p2%x - p1%x)**2.0D0 + (p2%y - p1%y)**2.0D0 - inJoint%distance2
+            output(inJoint%eqNR+0)= (p2%x - p1%x)**2.0D0 + (p2%y - p1%y)**2.0D0 - inJoint%distance2
         end associate
     end subroutine
 
@@ -193,10 +244,8 @@ module joints
         real(8), intent(in) :: time
         real(8), intent(out) :: output(:)
 
-        if(size(output) .ne. injoint%equations ) stop  'Dere'
-
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
-            output(1)= (p2%x - p1%x) * injoint%dir(2) - (p2%y - p1%y) * injoint%dir(1) 
+            output(inJoint%eqNR+0)= (p2%x - p1%x) * injoint%dir(2) - (p2%y - p1%y) * injoint%dir(1) 
         end associate
     end subroutine
         

@@ -3,6 +3,7 @@ program rbd
     use point
     use basic
     use joints
+    use matrixRoutines
     use iso_fortran_env
     
     implicit none
@@ -22,15 +23,18 @@ program rbd
     mat(3,3) =2.0D0
     vec = 1.0D0
 
-    a=3; b=1
-    call dgetri(a,b,mat,a,ipiv,vec,a,info)
+    call solveSystem(mat,vec)
 
-    mat(2,2)=ddot(a,vec,1,vec,1)
+
+
     write(*,*) vec
     write(*,*) compiler_version()
     write(*,*) compiler_options()
 
     allocate(bodies(4))
+
+    forall(i=1:4) bodies(i)%pointNR=i
+
     allocate(join(6))
  
     allocate(jointLinearMove::join(1)%jo)
@@ -63,7 +67,8 @@ program rbd
     do i=1,6
         inde= inds + join(i)%jo%equations - 1
         write(*,*) inds,inde
-        call join(i)%jo%eval(0.01D0, res(inds:inde ))
+        join(i)%jo%eqNR=inds
+        call join(i)%jo%eval(0.01D0, res)
         inds= inde+1
     end do
 

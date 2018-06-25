@@ -23,7 +23,7 @@ endif()
 
 #add_library(${lapackblas_libraries})
 project (rbd)
-add_executable(rbd rbd.f90 point.f90 point_sub1.f90 basic.f90 joints.f90)
+add_executable(rbd rbd.f90 point.f90 point_sub1.f90 basic.f90 joints.f90 matrixRoutines.f90)
 target_link_libraries(rbd -llapack -lblas)
 
 
