@@ -13,5 +13,19 @@ set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(CMAKE_C_COMPILER "/usr/bin/gcc")
 set(CMAKE_Fortran_COMPILER "/usr/bin/gfortran-8")
 
+find_package(BLAS)
+find_package(LAPACK)
+#find_library(BLAS)
+#find_library(LAPACK)
+if(LAPACK_FOUND AND BLAS_FOUND)
+   set(lapackblas_libraries "${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}")
+endif()
+
+#add_library(${lapackblas_libraries})
 project (rbd)
 add_executable(rbd rbd.f90 point.f90 point_sub1.f90 basic.f90 joints.f90)
+target_link_libraries(rbd -llapack -lblas)
+
+
+
+

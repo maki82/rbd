@@ -3,6 +3,7 @@ program rbd
     use point
     use basic
     use joints
+    use iso_fortran_env
     
     implicit none
 
@@ -10,7 +11,24 @@ program rbd
     type(pointData), allocatable :: bodies(:)
     type(jointCon), allocatable  :: join(:)
     integer :: numBodies, ioError,i, inds,inde
-    real(8) :: res(12)
+    real(8) :: res(12), ddot
+    real(8) :: mat(3,3), vec(3)
+    integer :: a,b,c,d,ipiv(3), info
+    external :: ddot
+
+    mat=0.0D0
+    mat(1,1) =2.0D0
+    mat(2,2) =2.0D0
+    mat(3,3) =2.0D0
+    vec = 1.0D0
+
+    a=3; b=1
+    call dgetri(a,b,mat,a,ipiv,vec,a,info)
+
+    mat(2,2)=ddot(a,vec,1,vec,1)
+    write(*,*) vec
+    write(*,*) compiler_version()
+    write(*,*) compiler_options()
 
     allocate(bodies(4))
     allocate(join(6))
