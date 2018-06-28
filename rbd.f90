@@ -11,44 +11,37 @@ program rbd
     character(len=32) :: program_name, strNumBodies
     type(pointData), allocatable :: bodies(:)
     type(jointCon), allocatable  :: join(:)
-    integer :: numBodies, ioError,i, inds,inde
-    real(8) :: res(12), ddot
-    real(8) :: mat(3,3), vec(3)
+    integer :: numBodies, ioError,i, inds,inde,j,k
+    real(8) :: res(12), ddot, angle
+    real(8) :: mat(12,12), vec(12)
+    real(8), parameter :: pi = 2.0D0*asin(1.0D0)
     integer :: a,b,c,d,ipiv(3), info
     external :: ddot
 
     mat=0.0D0
-    mat(1,1) =2.0D0
-    mat(2,2) =2.0D0
-    mat(3,3) =2.0D0
-    vec = 1.0D0
-
-    call solveSystem(mat,vec)
 
 
-
-    write(*,*) vec
     write(*,*) compiler_version()
     write(*,*) compiler_options()
 
     allocate(bodies(4))
 
-    forall(i=1:4) bodies(i)%pointNR=i
+    call bodies(1)%init(0.0D0,0.0D0)
+    call bodies(2)%init(1.0D0,0.0D0)
+    call bodies(3)%init(0.0D0,2.0D0)
+    call bodies(4)%init(0.0D0,3.0D0)
+    
+    forall(i=1:4) bodies(i)%pointNR=i        
 
     allocate(join(6))
- 
+
     allocate(jointLinearMove::join(1)%jo)
     allocate(jointRigid::join(2)%jo)
     allocate(jointDistance::join(3)%jo)
     allocate(jointLiner::join(4)%jo)
     allocate(jointFixedAngle::join(5)%jo)
     allocate(jointFixed::join(6)%jo)
-
-    call bodies(1)%init(0.0D0,0.0D0)
-    call bodies(2)%init(1.0D0,0.0D0)
-    call bodies(3)%init(0.0D0,2.0D0)
-    call bodies(4)%init(0.0D0,3.0D0)
-
+ 
     select type ( jj => join(1)%jo)
         type is(jointLinearMove)
             call initLinearMove(jj,0.0D0,0.0D0,1.0D0)
@@ -66,44 +59,36 @@ program rbd
     inde =1 
     do i=1,6
         inde= inds + join(i)%jo%equations - 1
-        write(*,*) inds,inde
         join(i)%jo%eqNR=inds
-        call join(i)%jo%eval(0.01D0, res)
         inds= inde+1
     end do
 
-    write(*,*) res
+    do k=1,360,90
+        angle= dble(k)/180.0*pi
+        do j=1,50
+            do i=1,6
+                call join(i)%jo%eval(angle, res)
+            end do
+           
+            write(*,*) k, j, norm2(res)
+            if (norm2(res)<1.0D-10) then
+                exit
+            endif
 
-!    call get_command_argument(0,program_name)
-!    call get_command_argument(1,strNumBodies)
-!
-!    call str2int(strNumBodies,numBodies,ioError)
-!    
-!    allocate(bodies(numBodies))
-!
-!    forall (i=1:numBodies) bodies(i)%pointNR=i
-!
-!    do i=1,numbodies
-!        write(*,*) 'Enter x-coordinate of point ', i
-!        read(*,*) bodies(i)%ts(0)%x
-!        write(*,*) 'Enter y-coordinate of point ', i
-!        read(*,*) bodies(i)%ts(0)%y
-!        write(*,*) 'Enter angle of point ', i
-!        read(*,*) bodies(i)%ts(0)%angle
-!    end do
-!
-!    
-!
-!    do concurrent(i=1:numBodies)
-!        write(*,*) 'Dere', bodies(i)%ts(0)%x 
-!        write(*,*) 'Dere', bodies(i)%ts(0)%y
-!        write(*,*) 'Dere', bodies(i)%ts(0)%angle 
-!        bodies(i)%ts(-1) = bodies(i)%ts(0)
-!        bodies(i)%ts(-2) = bodies(i)%ts(0)
-!    end do
-!
-!    write(*,*) 'This is the very first version of ', program_name
+            mat=0.0D0
+            do i=1,6
+                call join(i)%jo%derivative(angle, mat)
+            end do
 
-   ! call duplicate(test)
+            call solveSystem(mat,res)
+
+            forall(i=1:4) 
+                bodies(i)%TS(0)%x = bodies(i)%TS(0)%x - res((i-1)*3+1)
+                bodies(i)%TS(0)%y = bodies(i)%TS(0)%y - res((i-1)*3+2)
+                bodies(i)%TS(0)%angle = bodies(i)%TS(0)%angle - res((i-1)*3+3)
+            end forall
+        enddo
+    enddo
+
 end program
 

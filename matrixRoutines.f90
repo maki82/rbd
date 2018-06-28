@@ -8,7 +8,7 @@ contains
         
         real(8) :: work(size(x))
         integer :: ipiv(size(x))
-        integer :: n, info 
+        integer :: n, info , i,j
 
         n = size(x)
 
@@ -16,9 +16,8 @@ contains
             .ne. min(size(x),size(A,1),size(A,2))) stop 'Oida die Dimensionen miasen passen.'
 
         call dgesv(n,1,A,n,ipiv,x,n,info)
+         if(info .ne. 0)  write(*,*) 'INFO' , info
 
-
-        !call dgetrf(n,n,A,n,ipiv,info)
     end subroutine
           
 

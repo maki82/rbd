@@ -29,14 +29,14 @@ module joints
             import joint
             class(joint),intent(in) :: inJoint
             real(8), intent(in) :: time
-            real(8), intent(out) :: output(:)
+            real(8), intent(inout) :: output(:)
     
         end subroutine
         subroutine derivativeGeneric(inJoint,time,output)
             import joint
             class(joint),intent(in) :: inJoint
             real(8), intent(in) :: time
-            real(8), intent(out) :: output(:,:)
+            real(8), intent(inout) :: output(:,:)
     
         end subroutine
     end interface
@@ -44,11 +44,13 @@ module joints
     type, extends(joint) :: jointFixed
         contains
         procedure :: eval => evalFixed
+        procedure :: derivative => derivativeFixed
     end type
 
     type, extends(joint) :: jointFixedAngle
         contains
         procedure :: eval => evalFixedAngle
+        procedure :: derivative => derivativeFixedAngle
     end type
 
     type, extends(joint) :: jointRigid
@@ -58,6 +60,7 @@ module joints
         contains
 
         procedure :: eval => evalRigid
+        procedure :: derivative => derivativeRigid
     end type
 
     type, extends(joint) :: jointDistance
@@ -66,6 +69,7 @@ module joints
         contains
 
         procedure :: eval => evalDistance
+        procedure :: derivative => derivativeDistance
     end type
 
     type, extends(joint) :: jointLiner
@@ -74,6 +78,7 @@ module joints
         contains
 
         procedure :: eval => evalLiner
+        procedure :: derivative => derivativeLiner
     end type
 
     type, extends(joint) :: jointLinearMove
@@ -85,6 +90,7 @@ module joints
 
         procedure :: initLinearMove
         procedure :: eval => evalLinearMove
+        procedure :: derivative => derivativeLinearMove
     end type
 
     contains
@@ -126,7 +132,7 @@ module joints
     end subroutine
 
     subroutine initLinearMove(inJoint,incX,incY,incAngle)
-        class(jointLinearMove), intent(inout)          :: injoint
+        class(jointLinearMove), intent(inout)         :: injoint
         real(8), intent(in)                           :: incX
         real(8), intent(in)                           :: incY
         real(8), intent(in)                           :: incAngle
@@ -139,7 +145,7 @@ module joints
     subroutine evalLinearMove(inJoint,time,output)
         class(jointLinearMove),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:)
+        real(8), intent(inout) :: output(:)
 
         output(inJoint%eqNR+0)= inJoint%point1%TS(0)%x - inJoint%incX * time    
         output(inJoint%eqNR+1)= inJoint%point1%TS(0)%y - inJoint%incY * time    
@@ -149,9 +155,9 @@ module joints
     subroutine derivativeLinearMove(inJoint,time,output)
         class(jointLinearMove),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:,:)
+        real(8), intent(inout) :: output(:,:)
         
-        associate(p1=>inJoint%points1)
+        associate(p1=>inJoint%point1)
             output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= 1.0D0
             output(inJoint%eqNR+1,(p1%pointNr-1)*3+2)= 1.0D0
             output(inJoint%eqNR+2,(p1%pointNr-1)*3+3)= 1.0D0
@@ -161,7 +167,7 @@ module joints
     subroutine evalFixed(inJoint,time,output)
         class(jointFixed),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:)
+        real(8), intent(inout) :: output(:)
 
         output(inJoint%eqNR+0)= inJoint%point1%TS(0)%x - inJoint%point1%TS(-1)%x    
         output(inJoint%eqNR+1)= inJoint%point1%TS(0)%y - inJoint%point1%TS(-1)%y    
@@ -169,11 +175,11 @@ module joints
     end subroutine
 
     subroutine derivativeFixed(inJoint,time,output)
-        class(jointLinearMove),intent(in) :: inJoint
+        class(jointFixed),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:,:)
+        real(8), intent(inout) :: output(:,:)
         
-        associate(p1=>inJoint%points1)
+        associate(p1=>inJoint%point1)
             output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= 1.0D0
             output(inJoint%eqNR+1,(p1%pointNr-1)*3+2)= 1.0D0
             output(inJoint%eqNR+2,(p1%pointNr-1)*3+3)= 1.0D0
@@ -183,25 +189,25 @@ module joints
     subroutine evalFixedAngle(inJoint,time,output)
         class(jointFixedAngle),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:)
+        real(8), intent(inout) :: output(:)
 
         output(inJoint%eqNR+0)= inJoint%point1%TS(0)%angle - inJoint%point1%TS(-1)%angle    
     end subroutine
 
     subroutine derivativeFixedAngle(inJoint,time,output)
-        class(jointLinearMove),intent(in) :: inJoint
+        class(jointFixedAngle),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:,:)
+        real(8), intent(inout) :: output(:,:)
         
-        associate(p1=>inJoint%points1)
-            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= 1.0D0
+        associate(p1=>inJoint%point1)
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+3)= 1.0D0
         end associate
     end subroutine
 
     subroutine evalRigid(inJoint,time,output)
         class(jointRigid),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:)
+        real(8), intent(inout) :: output(:)
 
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
             output(inJoint%eqNR+0)= p2%x - p1%x - injoint%initialx * cos(p1%angle) - injoint%initialY * sin(p1%angle)
@@ -211,9 +217,9 @@ module joints
     end subroutine
 
     subroutine derivativeRigid(inJoint,time,output)
-        class(jointLinearMove),intent(in) :: inJoint
+        class(jointRigid),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:,:)
+        real(8), intent(inout) :: output(:,:)
         
         associate(p1 => injoint%point1 , p2 => injoint%point2 )
             output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= -1.0D0 
@@ -224,28 +230,55 @@ module joints
             output(inJoint%eqNR+1,(p2%pointNr-1)*3+2)= 1.0D0
             output(inJoint%eqNR+2,(p2%pointNr-1)*3+3)= 1.0D0
 
-            output(inJoint%eqNR+0,(p1%pointNr-1)*3+3)= inJoint%initialx*sin(p1%angle) - inJoint%initialY * cos(p1%angle)
-            output(inJoint%eqNR+1,(p1%pointNr-1)*3+3)= inJoint%initialy*sin(p1%angle) + inJoint%initialX * cos(p1%angle)
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+3)= inJoint%initialx*sin(p1%TS(0)%angle) - inJoint%initialY * cos(p1%TS(0)%angle)
+            output(inJoint%eqNR+1,(p1%pointNr-1)*3+3)= inJoint%initialy*sin(p1%TS(0)%angle) + inJoint%initialX * cos(p1%TS(0)%angle)
         end associate
     end subroutine
 
     subroutine evalDistance(inJoint,time,output)
         class(jointDistance),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:)
+        real(8), intent(inout) :: output(:)
 
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
             output(inJoint%eqNR+0)= (p2%x - p1%x)**2.0D0 + (p2%y - p1%y)**2.0D0 - inJoint%distance2
+
+        end associate
+    end subroutine
+
+    subroutine derivativeDistance(inJoint,time,output)
+        class(jointDistance),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(inout) :: output(:,:)
+        
+        associate(p1 => injoint%point1 , p2 => injoint%point2 )
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= -2.0D0 * (p2%TS(0)%x - p1%TS(0)%x) 
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+2)= -2.0D0 * (p2%TS(0)%y - p1%TS(0)%y)
+            output(inJoint%eqNR+0,(p2%pointNr-1)*3+1)= 2.0D0 * (p2%TS(0)%x - p1%TS(0)%x) 
+            output(inJoint%eqNR+0,(p2%pointNr-1)*3+2)= 2.0D0 * (p2%TS(0)%y - p1%TS(0)%y)
         end associate
     end subroutine
 
     subroutine evalLiner(inJoint,time,output)
         class(jointLiner),intent(in) :: inJoint
         real(8), intent(in) :: time
-        real(8), intent(out) :: output(:)
+        real(8), intent(inout) :: output(:)
 
         associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
             output(inJoint%eqNR+0)= (p2%x - p1%x) * injoint%dir(2) - (p2%y - p1%y) * injoint%dir(1) 
+        end associate
+    end subroutine
+
+    subroutine derivativeLiner(inJoint,time,output)
+        class(jointLiner),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(inout) :: output(:,:)
+        
+        associate(p1 => injoint%point1 , p2 => injoint%point2 )
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+1)= -inJoint%dir(2)
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+2)= inJoint%dir(1)
+            output(inJoint%eqNR+0,(p2%pointNr-1)*3+1)= inJoint%dir(2)
+            output(inJoint%eqNR+0,(p2%pointNr-1)*3+2)= -inJoint%dir(1)
         end associate
     end subroutine
         
