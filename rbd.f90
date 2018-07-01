@@ -33,7 +33,7 @@ program rbd
     
     forall(i=1:4) bodies(i)%pointNR=i        
 
-    allocate(join(6))
+    allocate(join(7))
 
     allocate(jointLinearMove::join(1)%jo)
     allocate(jointRigid::join(2)%jo)
@@ -41,18 +41,21 @@ program rbd
     allocate(jointLiner::join(4)%jo)
     allocate(jointFixedAngle::join(5)%jo)
     allocate(jointFixed::join(6)%jo)
+    allocate(jointRot::join(7)%jo)
  
-    select type ( jj => join(1)%jo)
-        type is(jointLinearMove)
-            call initLinearMove(jj,0.0D0,0.0D0,1.0D0)
-    end select
+ !   select type ( jj => join(1)%jo)
+ !       type is(jointLinearMove)
+     !       call joininitLinearMove(jj,0.0D0,0.0D0,1.0D0)
+ !    call jj%init(1,bodies(1),0.0D0,0.0D0,1.0D0)
+ !   end select
 
-    call join(1)%jo%init(1,bodies(1))
+    call join(1)%jo%init(1,bodies(1),0.0D0,0.0D0,1.0D0)
     call join(2)%jo%init(1,bodies(1),bodies(2))
     call join(3)%jo%init(1,bodies(2),bodies(3))
     call join(4)%jo%init(1,bodies(3),bodies(4))
     call join(5)%jo%init(1,bodies(3))
     call join(6)%jo%init(1,bodies(4))
+    call join(7)%jo%init(eqnr=1,point1=bodies(4),point2=bodies(5),gearRatio=2.0D0)
 
     res=0.0D0
     inds =1 

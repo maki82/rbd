@@ -16,7 +16,10 @@ module joints
         
         procedure(evalGeneric), deferred, pass(inJoint) :: eval 
         procedure(derivativeGeneric), deferred, pass(inJoint) :: derivative
-        procedure :: init => initGeneric
+        procedure :: init1 => initGeneric
+        procedure :: init2 => initLinearMoveDummy
+        procedure :: init3 => initRotDummy
+        generic, public :: init => init1,init2,init3
 
     end type
 
@@ -88,12 +91,23 @@ module joints
 
         contains
 
-        procedure :: initLinearMove
+        procedure :: init2 => initLinearMove
         procedure :: eval => evalLinearMove
         procedure :: derivative => derivativeLinearMove
     end type
 
+    type, extends(joint) :: jointRot
+        real(8) :: gearRatio = 1.0D0
+
+        contains
+
+        procedure :: eval => evalRot
+        procedure :: init3 => initRot
+        procedure :: derivative => derivativeRot
+    end type
+
     contains
+
 
     subroutine initGeneric(inJoint,eqNR,point1,point2)
         type(pointData), target, intent(in)           :: point1
@@ -116,6 +130,8 @@ module joints
                 inJoint%initialY = point2%TS(0)%y - point1%TS(0)%y
             type is(jointLinearMove)
                 inJoint%equations = 3
+            type is(jointRot)
+                inJoint%equations = 1
             type is(jointDistance)
                 inJoint%equations = 1
                 inJoint%Distance2 = (point2%TS(0)%x - point1%TS(0)%x)**2.0D0 + (point2%TS(0)%y - point1%TS(0)%y)**2.0D0
@@ -131,8 +147,20 @@ module joints
         end select        
     end subroutine
 
-    subroutine initLinearMove(inJoint,incX,incY,incAngle)
+    subroutine initLinearMoveDummy(inJoint,eqNr,point1,incX,incY,incAngle)
+        class(joint), intent(inout)         :: injoint
+        type(pointData), target, intent(in)           :: point1
+        integer, intent(in)                           :: eqNR
+        real(8), intent(in)                           :: incX
+        real(8), intent(in)                           :: incY
+        real(8), intent(in)                           :: incAngle
+
+    end subroutine 
+
+    subroutine initLinearMove(inJoint,eqNr,point1,incX,incY,incAngle)
         class(jointLinearMove), intent(inout)         :: injoint
+        type(pointData), target, intent(in)           :: point1
+        integer, intent(in)                           :: eqNR
         real(8), intent(in)                           :: incX
         real(8), intent(in)                           :: incY
         real(8), intent(in)                           :: incAngle
@@ -140,6 +168,29 @@ module joints
         inJoint%incX = incX
         inJoint%incY = incY
         inJoint%incAngle = incAngle
+
+        call inJoint%init(eqNr, point1)
+
+    end subroutine 
+
+    subroutine initRot(inJoint,eqNR,point1,point2,gearRatio)
+        type(pointData), target, intent(in)           :: point1
+        type(pointData), target, intent(in)           :: point2
+        class(jointRot), intent(inout)                :: injoint
+        integer, intent(in)                           :: eqNR
+        real(8), intent(in)                           :: gearRatio
+
+        inJoint%gearRAtio = gearRatio
+        call injoint%init(eqNR,point1,point2)
+
+    end subroutine 
+
+    subroutine initRotDummy(inJoint,eqNR,point1,point2,gearRatio)
+        type(pointData), target, intent(in)           :: point1
+        type(pointData), target, intent(in)           :: point2
+        class(joint), intent(inout)                :: injoint
+        integer, intent(in)                           :: eqNR
+        real(8), intent(in)                           :: gearRatio
     end subroutine 
 
     subroutine evalLinearMove(inJoint,time,output)
@@ -279,6 +330,27 @@ module joints
             output(inJoint%eqNR+0,(p1%pointNr-1)*3+2)= inJoint%dir(1)
             output(inJoint%eqNR+0,(p2%pointNr-1)*3+1)= inJoint%dir(2)
             output(inJoint%eqNR+0,(p2%pointNr-1)*3+2)= -inJoint%dir(1)
+        end associate
+    end subroutine
+
+    subroutine evalRot(inJoint,time,output)
+        class(jointRot),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(inout) :: output(:)
+
+        associate(p1 => injoint%point1%TS(0) , p2 => injoint%point2%TS(0) )
+            output(inJoint%eqNR+0)=  p2%angle - p1%angle*inJoint%gearRatio
+        end associate
+    end subroutine
+
+    subroutine derivativeRot(inJoint,time,output)
+        class(jointRot),intent(in) :: inJoint
+        real(8), intent(in) :: time
+        real(8), intent(inout) :: output(:,:)
+        
+        associate(p1 => injoint%point1 , p2 => injoint%point2 )
+            output(inJoint%eqNR+0,(p1%pointNr-1)*3+3)= -inJoint%gearRatio
+            output(inJoint%eqNR+0,(p2%pointNr-1)*3+3)= 1
         end associate
     end subroutine
         
